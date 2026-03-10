@@ -15,11 +15,11 @@ GET /healthz   →  { "status": "ok" }
 ## Requirements
 
 - **ECS Fargate** in private subnets, behind an **ALB** with **WAF**
-- **VPC Endpoints** for AWS service access. No NAT gateways.
+- Tasks must access AWS services without NAT gateways. Figure out how.
 - **Database**: DynamoDB or RDS PostgreSQL - you choose, you justify
-- **Blue/green deployments** via CodeDeploy with automatic rollback
-- **GitHub Actions** CI/CD using **OIDC** (no long-lived AWS keys)
-- **Terraform** with remote state, modular layout
+- **Zero-downtime deployments** with automatic rollback on failure
+- **GitHub Actions** CI/CD with no long-lived AWS credentials
+- **Terraform** with remote state and modular layout
 - **Least-privilege IAM** throughout. No hardcoded credentials.
 
 ### App Config
@@ -36,19 +36,18 @@ You've deployed the service. Now a developer merges a PR and expects their chang
 
 ## Deliverables
 
-1. Working service (ALB DNS) with all endpoints functional
+1. Working service with all endpoints functional
 2. GitHub Actions workflows (CI + CD)
 3. Terraform code for all infrastructure
 4. Deployment workflow documentation
-5. Evidence: OIDC trust policy, CodeDeploy blue/green, WAF on ALB, VPC Endpoints
-6. README with decisions, trade-offs and database justification
+5. README with decisions, trade-offs and database justification
 
 ## Acceptance Criteria
 
-- No NAT gateways. Tasks pull images and write logs via VPC endpoints.
-- Blue/green with auto-rollback on health check failure.
+- No NAT gateways. Tasks still pull images and write logs.
+- Zero-downtime deployments with auto-rollback on health check failure.
 - Least-privilege IAM for your chosen database.
-- OIDC auth in GitHub Actions.
+- No long-lived AWS credentials in CI/CD.
 - Remote Terraform state with locking.
 - Deployment workflow section present and coherent.
 - You can explain every resource. Copy-paste without understanding = resubmission.
@@ -56,10 +55,6 @@ You've deployed the service. Now a developer merges a PR and expects their chang
 ## Cost Warning
 
 Tear down when done. ALB + WAF cost money even idle.
-
-```bash
-cd infra/envs/dev && terraform destroy -auto-approve
-```
 
 [LocalStack](https://docs.localstack.cloud/getting-started/) works for local testing.
 

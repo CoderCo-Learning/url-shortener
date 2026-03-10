@@ -1,1 +1,1 @@
-# Your Dockerfile. Make it lightweight and secure.
+# Your Dockerfile.
