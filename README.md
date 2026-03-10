@@ -44,11 +44,10 @@ You've deployed the service. Now a developer merges a PR and expects their chang
 
 ## Acceptance Criteria
 
-- No NAT gateways. Tasks still pull images and write logs.
 - Zero-downtime deployments with auto-rollback on health check failure.
 - Least-privilege IAM for your chosen database.
 - No long-lived AWS credentials in CI/CD.
-- Remote Terraform state with locking.
+- Remote Terraform state.
 - Deployment workflow section present and coherent.
 - You can explain every resource. Copy-paste without understanding = resubmission.
 
