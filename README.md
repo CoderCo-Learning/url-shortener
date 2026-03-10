@@ -30,10 +30,13 @@ The Python application is provided in `app/`. You build everything else.
 
 - **ECS Fargate** service running in **private subnets** (no public IPs on tasks)
 - **Application Load Balancer** in public subnets routing to the ECS service
-- **VPC Endpoints** for all AWS service access (ECR, DynamoDB, CloudWatch Logs, S3). No NAT gateways.
-- **DynamoDB** table with on-demand billing and point-in-time recovery enabled
+- **VPC Endpoints** for all AWS service access (ECR, CloudWatch Logs, S3, and your database). No NAT gateways.
+- **Database** - pick one:
+  - **Option A: DynamoDB** - on-demand billing, PITR enabled, VPC gateway endpoint. Simpler to set up, no connection management.
+  - **Option B: RDS PostgreSQL** - private subnet group, security group scoped to ECS tasks only, automated backups. Closer to what most production services use. Requires schema migrations.
+  - The app supports both. Set `TABLE_NAME` for DynamoDB or `DATABASE_URL` for PostgreSQL. Document why you chose one over the other.
 - **AWS WAF** attached to the ALB with sensible rules
-- **S3 + DynamoDB** for Terraform state backend (create this first in `infra/global/backend`)
+- **S3** for Terraform state backend with state locking (create this first in `infra/global/backend`)
 - Modular Terraform layout split by environment (`infra/modules/`, `infra/envs/dev/`)
 
 ### Deployments
@@ -50,13 +53,18 @@ The Python application is provided in `app/`. You build everything else.
 
 ### Security
 
-- Task IAM role: only `dynamodb:GetItem` and `dynamodb:PutItem` on your table (least privilege)
+- Task IAM role: least privilege. If DynamoDB, scope to `GetItem`/`PutItem` on your table only. If RDS, the DB credentials should come from Secrets Manager (not hardcoded env vars).
 - Execution role: only ECR pull + CloudWatch Logs write
 - No secrets or credentials stored in code or GitHub settings
+- If using RDS: security group should only allow inbound from the ECS task security group
 
 ### App Configuration
 
-The app needs one environment variable: `TABLE_NAME` (your DynamoDB table name).
+The app needs one of these environment variables:
+- `TABLE_NAME` - your DynamoDB table name (Option A)
+- `DATABASE_URL` - PostgreSQL connection string (Option B), e.g. `postgresql://user:pass@host:5432/dbname`
+
+If using RDS, think about how you'd handle database migrations in a containerised environment. The app creates the table on startup, but in production you'd want a proper migration strategy.
 
 ## The Deployment Question
 
@@ -91,11 +99,12 @@ These will be checked:
 
 - No NAT gateways. Tasks still pull images from ECR and write logs.
 - CodeDeploy blue/green shifts traffic and auto-rolls back on health check failure.
-- Task role is scoped to your DynamoDB table only.
+- Task role follows least privilege for your chosen database.
+- If using RDS: credentials are not hardcoded, security group is scoped correctly, and you can explain your migration strategy.
 - GitHub workflow uses `id-token: write` and assumes an OIDC role.
 - Terraform state is remote (S3 + state locking).
 - Deployment workflow section is present and makes sense.
-- You can explain every resource you created. Copy-paste without understanding = resubmission.
+- You can explain every resource you created and why you chose your database. Copy-paste without understanding = resubmission.
 
 ## Cost Warning
 

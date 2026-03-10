@@ -1,13 +1,13 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 import os, hashlib, time
-from .ddb import put_mapping, get_mapping
+from .db import put_mapping, get_mapping, get_backend_type
 
 app = FastAPI()
 
 @app.get("/healthz")
 def health():
-    return {"status": "ok", "ts": int(time.time())}
+    return {"status": "ok", "ts": int(time.time()), "db": get_backend_type()}
 
 @app.post("/shorten")
 async def shorten(req: Request):
