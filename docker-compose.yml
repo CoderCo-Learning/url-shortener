@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: shortener
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: localdev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./app
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://app:localdev@postgres:5432/shortener
+      REDIS_URL: redis://redis:6379
+      SQS_QUEUE_URL: ""
+      PORT: "8080"
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build: ./services/worker
+    environment:
+      DATABASE_URL: postgres://app:localdev@postgres:5432/shortener?sslmode=disable
+      SQS_QUEUE_URL: http://localstack:4566/000000000000/click-events
+    depends_on:
+      - postgres
+
+  dashboard:
+    build: ./services/dashboard
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgres://app:localdev@postgres:5432/shortener?sslmode=disable
+      PORT: "8081"
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:

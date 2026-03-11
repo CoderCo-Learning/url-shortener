@@ -36,13 +36,20 @@ def _init_dynamodb():
     table = boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
 
     def put(short_id: str, url: str):
-        table.put_item(Item={"id": short_id, "url": url})
+        table.put_item(Item={"id": short_id, "url": url, "clicks": 0})
 
     def get(short_id: str):
         resp = table.get_item(Key={"id": short_id})
         return resp.get("Item")
 
-    return {"put": put, "get": get, "type": "dynamodb"}
+    def incr(short_id: str):
+        table.update_item(
+            Key={"id": short_id},
+            UpdateExpression="SET clicks = if_not_exists(clicks, :zero) + :one",
+            ExpressionAttributeValues={":one": 1, ":zero": 0},
+        )
+
+    return {"put": put, "get": get, "incr": incr, "type": "dynamodb"}
 
 
 # -- PostgreSQL backend --
@@ -57,8 +64,10 @@ def _init_postgres():
     with conn.cursor() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS urls (
-                id   TEXT PRIMARY KEY,
-                url  TEXT NOT NULL
+                id     TEXT PRIMARY KEY,
+                url    TEXT NOT NULL,
+                clicks INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW()
             )
         """)
 
@@ -71,10 +80,14 @@ def _init_postgres():
 
     def get(short_id: str):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT id, url FROM urls WHERE id = %s", (short_id,))
+            cur.execute("SELECT id, url, clicks FROM urls WHERE id = %s", (short_id,))
             return cur.fetchone()
 
-    return {"put": put, "get": get, "type": "postgres"}
+    def incr(short_id: str):
+        with conn.cursor() as cur:
+            cur.execute("UPDATE urls SET clicks = clicks + 1 WHERE id = %s", (short_id,))
+
+    return {"put": put, "get": get, "incr": incr, "type": "postgres"}
 
 
 def put_mapping(short_id: str, url: str):
@@ -83,6 +96,10 @@ def put_mapping(short_id: str, url: str):
 
 def get_mapping(short_id: str):
     return _get_backend()["get"](short_id)
+
+
+def increment_clicks(short_id: str):
+    _get_backend()["incr"](short_id)
 
 
 def get_backend_type() -> str:

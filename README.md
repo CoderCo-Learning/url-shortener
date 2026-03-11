@@ -4,57 +4,74 @@
 
 # URL Shortener - CoderCo ECS Project v2
 
-A URL shortener on AWS. The app is provided. You build everything else.
+A URL shortener with click analytics on AWS. Three services, one cluster. The application code is provided. You build everything else.
 
-```
-POST /shorten  { "url": "https://example.com/long/path" }  →  { "short": "abc123ef" }
-GET /abc123ef  →  302 redirect
-GET /healthz   →  { "status": "ok" }
-```
+## Services
 
-## Requirements
+| Service | Language | Port | Description |
+|---------|----------|------|-------------|
+| **api** | Python | 8080 | Shortens URLs, handles redirects, tracks clicks, publishes events to SQS |
+| **worker** | Go | - | Polls SQS for click events, writes analytics to PostgreSQL |
+| **dashboard** | Go | 8081 | Analytics API - top URLs, click stats, hourly breakdowns, recent events |
 
-- **ECS Fargate** in private subnets, behind an **ALB** with **WAF**
-- Tasks must access AWS services without NAT gateways. Figure out how.
-- **Database**: DynamoDB or RDS PostgreSQL - you choose, you justify
-- **Zero-downtime deployments** with automatic rollback on failure
-- **GitHub Actions** CI/CD with no long-lived AWS credentials
-- **Terraform** with remote state and modular layout
-- **Least-privilege IAM** throughout. No hardcoded credentials.
+Read the code. Environment variables and endpoints are in the source files.
 
-### App Config
+---
 
-- `TABLE_NAME` env var for DynamoDB
-- `DATABASE_URL` env var for PostgreSQL
-- Container port: **8080**
+## Your Job
 
-## The Deployment Question
+Write the Dockerfiles. Write the Terraform. Write the CI/CD pipeline. Deploy all three services to ECS Fargate on AWS.
+
+### Requirements
+
+- ECS Fargate - three separate services, one cluster
+- Application Load Balancer with WAF routing to the correct service
+- Database: DynamoDB or RDS PostgreSQL - you choose, you justify
+- ElastiCache Redis (caching layer for the API)
+- SQS queue (click events from API to worker)
+- VPC with private subnets. No NAT gateways.
+- GitHub Actions with OIDC. No long-lived AWS credentials.
+- Zero-downtime deployments with rollback on failure
+- Least-privilege IAM throughout
+- Terraform with remote state
+- Multi-stage Docker builds
+
+### The Deployment Question
 
 You've deployed the service. Now a developer merges a PR and expects their change live within minutes - safely, with zero downtime.
 
-**Design and document the full deployment workflow** in your README. Code merge to live traffic. Cover image builds, task definition updates, traffic shifting, rollback and observability.
+Design and document the full deployment workflow in your README. Code merge to live traffic.
 
-## Deliverables
+### Deliverables
 
-1. Working service with all endpoints functional
-2. GitHub Actions workflows (CI + CD)
-3. Terraform code for all infrastructure
-4. Deployment workflow documentation
-5. README with decisions, trade-offs and database justification
+- [ ] Dockerfiles (one per service)
+- [ ] Terraform for all infrastructure
+- [ ] GitHub Actions CI/CD pipeline
+- [ ] Deployment workflow documentation
+- [ ] Working deployment - all services healthy, end-to-end flow functional
+- [ ] README with your decisions, trade-offs and database justification
 
-## Acceptance Criteria
+---
 
-- Zero-downtime deployments with auto-rollback on health check failure.
-- Least-privilege IAM for your chosen database.
-- No long-lived AWS credentials in CI/CD.
-- Remote Terraform state.
-- Deployment workflow section present and coherent.
-- You can explain every resource. Copy-paste without understanding = resubmission.
+## Local Development
 
-## Cost Warning
+```bash
+docker compose up --build
+```
 
-Tear down when done. ALB + WAF cost money even idle.
+---
 
-[LocalStack](https://docs.localstack.cloud/getting-started/) works for local testing.
+## Grading
+
+- All three services running and healthy
+- End-to-end flow works (shorten -> redirect -> analytics)
+- Zero-downtime deployments with auto-rollback on health check failure
+- No NAT gateways, no long-lived credentials, no hardcoded secrets
+- Deployment workflow section present and coherent
+- You can explain every resource you created
+
+**Tear down when done.** ALB + WAF cost money even idle.
+
+[LocalStack](https://docs.localstack.cloud/getting-started/) works for local testing of SQS.
 
 Everything else is on you. Commit small. Good luck.
